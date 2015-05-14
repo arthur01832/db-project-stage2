@@ -382,7 +382,8 @@ void select (lua_State* L)
 	for (auto i=2;i<=command_num;i++){
 		lua_rawgeti(L,-1,i);
 		int check_elem = lua_objlen(L,-1);
-		if (i==2) {													//distinguish from "SELECT"(i=2), "From"(i=3), and "Where" query(i=4)
+		//distinguish from "SELECT"(i=2), "From"(i=3), and "Where" query(i=4)
+		if (i==2) {													
 			for (auto j=1;j<=check_elem;j++){
 				lua_rawgeti(L,-1,j);			
 				if (j>=2){
@@ -399,7 +400,8 @@ void select (lua_State* L)
 						}
 					}
 				} else {
-					opt.push_back(string(lua_tostring(L, -1))); 		// opt = COUNT or SUM or attr or null
+					// opt = COUNT or SUM or attr or null
+					opt.push_back(string(lua_tostring(L, -1))); 		
 				}
 				lua_pop(L,1);
 			} 
@@ -407,14 +409,21 @@ void select (lua_State* L)
 			for (auto j=1;j<=check_elem;j++){
 				lua_rawgeti(L,-1,j);
 				int check_subelem = lua_objlen(L,-1);
+				string tmp;
 				for (auto k=1;k<=check_subelem;k++) {
 					if (k==1){
 						lua_rawgeti(L,-1,k);
-						From_table_name.push_back(string(lua_tostring(L, -1)));
+						tmp = lua_tostring(L, -1);
+						From_table_name.push_back(tmp);
 						lua_pop(L,1);
-					}else {
+					}
+					From_alias.push_back(tmp);
+					/* IF there is a true alias define, we erase the first element 
+					*  and then we push_back the true alias define.*/
+					if (k == 2){
+						From_alias.erase(From_alias.begin());
 						lua_rawgeti(L,-1,k);
-						From_table_name.push_back(string(lua_tostring(L, -1)));
+						From_alias.push_back(string(lua_tostring(L, -1)));
 						lua_pop(L,1);
 					}
 				}
@@ -496,10 +505,16 @@ void select (lua_State* L)
 	
 	
 	struct Table* currtable = nullptr;
+	struct Table* currtable_sec = nullptr;
 	
 	if(tables.find(From_table_name[0]) != tables.end()) {
         currtable = tables[From_table_name[0]];
     }
+	if (From_table_name.size() == 2){
+		if(tables.find(From_table_name[1]) != tables.end()) {
+			currtable_sec = tables[From_table_name[1]];
+		}
+	}
 	vector<string> target_list;   			// name of target_list
 	vector<string> target_list_combine;		// name with alias and target_list
 	vector<int> target_size;	  			// size of target_list
@@ -508,167 +523,449 @@ void select (lua_State* L)
 	vector<int> tmp_i;									// in order to transform vector to deque
 	vector<string> tmp_v;
 	
-
-	
-	if(check_where_num[0]==0){
-		if (SEL_alias[0] == "*"){
-			
-			// get the table name (From_table_name[0]), finding the table's attrlist and attrsize
-			target_list = currtable->attrname;
-			int target_list_number = target_list.size();
-			for (int in =0; in<target_list_number; in++){
-				int value = currtable-> attrsize[target_list[in]];
-				target_size.push_back(value);
-			}
-		}else{
-			int target_number = SEL_alias.size();
-			for (int i=0;i<target_number;i++){
-				auto tmp = SEL_alias[i];
-				target_list.push_back(tmp);
-				int value = currtable-> attrsize[tmp];
-				target_size.push_back(value);
-			}
-		}
-		auto selecttable = new_table(target_list,target_size);
-		int target_list_number = target_list.size();
-
-		for(int i = 0; i < currtable->rownum; i++) {
-			for(int in =0; in< target_list_number; in++){
-				int value = target_size[in];
-				if (value == -1){
-					tmp_i = currtable->attrint[target_list[in]];
-					int_v.push_back(tmp_i[i]);
-				}else{
-					tmp_v = currtable->attrvar[target_list[in]];
-					str_v.push_back(tmp_v[i]);
-				}
-			}
-			new_row(selecttable, int_v, str_v);
-			for(int in =0; in< target_list_number; in++){
-				int value = target_size[in];
-				if (value == -1){
-					int_v.pop_front();
-				}else{
-					str_v.pop_front();
-				}
-			}
-		}
-		print_table(selecttable);
-	}
-	else if (check_where_num[0]==1){
-		// Create Selected target table
-		if (SEL_alias[0] == "*"){
-			// get the table name (From_table_name[0]), finding the table's attrlist and attrsize
-			target_list = currtable->attrname;
-			int target_list_number = target_list.size();
-			for (int in =0; in<target_list_number; in++){
-				int value = currtable-> attrsize[target_list[in]];
-				target_size.push_back(value);
-			}
-		}else{
-			int target_number = SEL_alias.size();
-			for (int i=0;i<target_number;i++){
-				auto tmp = SEL_alias[i];
-				target_list.push_back(tmp);
-				int value = currtable-> attrsize[tmp];
-				target_size.push_back(value);
-			}
-		}
-		auto selecttable = new_table(target_list,target_size);
-		
-		// Finding the index and Doing Where condition transform(char to int)
-		int target_list_number = target_list.size();
-		string attr_tmp = where_condition_first_alias[0];
-		int value = currtable-> attrsize[attr_tmp];
-		multimap<int,int>::iterator it,itlow,itup,eqit;
-		multimap<string,int>::iterator it_var;
-		vector<int> index_i;
-		
-		if (value== -1){
-			// Converting the string to integer if the attribute is the integer
-			convert_stoi << compare_alias_char_first[0];
-			convert_stoi >> compare_int_first;
-
-			if (op_flag_first == "eq"){
-				for ( it = currtable-> attrint_i[attr_tmp].equal_range(compare_int_first).first; 
-						  it !=currtable-> attrint_i[attr_tmp].equal_range(compare_int_first).second; ++it ){
-							  index_i.push_back((*it).second);
-						  }
-			}else if (op_flag_first == "gt"){
-				itlow = currtable-> attrint_i[attr_tmp].lower_bound(compare_int_first+1);
-				for (it = itlow; it!=currtable-> attrint_i[attr_tmp].end();++it){
-						index_i.push_back((*it).second);
-					}
+	// There is only one table which is selected.
+	if(From_table_name.size() == 1){ 
+		if(check_where_num[0]==0){
+			if (SEL_alias[0] == "*"){
 				
-			}else if (op_flag_first == "lt"){
-				itup = currtable-> attrint_i[attr_tmp].upper_bound(compare_int_first-1);
-				for (it = currtable-> attrint_i[attr_tmp].begin();it!=itup; ++it){
-						index_i.push_back((*it).second);
-					}
+				// get the table name (From_table_name[0]), finding the table's attrlist and attrsize
+				target_list = currtable->attrname;
+				int target_list_number = target_list.size();
+				for (int in =0; in<target_list_number; in++){
+					int value = currtable-> attrsize[target_list[in]];
+					target_size.push_back(value);
+				}
+			}else{
+				int target_number = SEL_alias.size();
+				for (int i=0;i<target_number;i++){
+					auto tmp = SEL_alias[i];
+					target_list.push_back(tmp);
+					int value = currtable-> attrsize[tmp];
+					target_size.push_back(value);
+				}
 			}
-			
-		}
-		else{
-			if (op_flag_first == "eq"){
-				//string tmp;
-				//tmp = compare_alias_char_first[0];
-				for ( it_var = currtable-> attrvar_i[attr_tmp].equal_range(compare_alias_char_first[0]).first; 
-						  it_var !=currtable-> attrvar_i[attr_tmp].equal_range(compare_alias_char_first[0]).second; ++it_var )
-					{
-					  index_i.push_back((*it_var).second);
+			auto selecttable = new_table(target_list,target_size);
+			int target_list_number = target_list.size();
+
+			for(int i = 0; i < currtable->rownum; i++) {
+				for(int in =0; in< target_list_number; in++){
+					int value = target_size[in];
+					if (value == -1){
+						tmp_i = currtable->attrint[target_list[in]];
+						int_v.push_back(tmp_i[i]);
+					}else{
+						tmp_v = currtable->attrvar[target_list[in]];
+						str_v.push_back(tmp_v[i]);
 					}
-			}
-		}
-		//Doing the insertion function
-		int target_number = SEL_alias.size();
-		int index_number = index_i.size();
-		for (int i=0;i<target_number;i++){
-			for (int j=0; j< index_number; j++){
-				auto tmp = SEL_alias[i];
-				int value = target_size[i];
-				if (value== -1){
-					tmp_i = currtable->attrint[tmp];
-					int tmp_index = index_i[j];
-					int_v.push_back(tmp_i[tmp_index]);
-				}else {
-					tmp_v = currtable->attrvar[tmp];
-					int tmp_index = index_i[j];
-					str_v.push_back(tmp_v[tmp_index]);
 				}
 				new_row(selecttable, int_v, str_v);
-				if (value == -1){
-					int_v.pop_front();
-				}else{
-					str_v.pop_front();
+				for(int in =0; in< target_list_number; in++){
+					int value = target_size[in];
+					if (value == -1){
+						int_v.pop_front();
+					}else{
+						str_v.pop_front();
+					}
 				}
 			}
+			print_table(selecttable);
 		}
-		print_table(selecttable);
-		// Clear the element in the convert_stoi
-		convert_stoi.str("");
-		convert_stoi.clear();
-	}
-	else if(check_where_num[0]==2){
-		// Create Selected target table
-		if (SEL_alias[0] == "*"){
-			// get the table name (From_table_name[0]), finding the table's attrlist and attrsize
-			target_list = currtable->attrname;
-			int target_list_number = target_list.size();
-			for (int in =0; in<target_list_number; in++){
-				int value = currtable-> attrsize[target_list[in]];
-				target_size.push_back(value);
+		else if (check_where_num[0]==1){
+			// Create Selected target table
+			if (SEL_alias[0] == "*"){
+				// get the table name (From_table_name[0]), finding the table's attrlist and attrsize
+				target_list = currtable->attrname;
+				int target_list_number = target_list.size();
+				for (int in =0; in<target_list_number; in++){
+					int value = currtable-> attrsize[target_list[in]];
+					target_size.push_back(value);
+				}
+			}else{
+				int target_number = SEL_alias.size();
+				for (int i=0;i<target_number;i++){
+					auto tmp = SEL_alias[i];
+					target_list.push_back(tmp);
+					int value = currtable-> attrsize[tmp];
+					target_size.push_back(value);
+				}
 			}
+			auto selecttable = new_table(target_list,target_size);
+			
+			// Finding the index and Doing Where condition transform(char to int)
+			int target_list_number = target_list.size();
+			string attr_tmp = where_condition_first_alias[0];
+			int value = currtable-> attrsize[attr_tmp];
+			multimap<int,int>::iterator it,itlow,itup,eqit;
+			multimap<string,int>::iterator it_var;
+			vector<int> index_i;
+			
+			if (value== -1){
+				// Converting the string to integer if the attribute is the integer
+				convert_stoi << compare_alias_char_first[0];
+				convert_stoi >> compare_int_first;
+
+				if (op_flag_first == "eq"){
+					for ( it = currtable-> attrint_i[attr_tmp].equal_range(compare_int_first).first; 
+							  it !=currtable-> attrint_i[attr_tmp].equal_range(compare_int_first).second; ++it ){
+								  index_i.push_back((*it).second);
+							  }
+				}else if (op_flag_first == "gt"){
+					itlow = currtable-> attrint_i[attr_tmp].lower_bound(compare_int_first+1);
+					for (it = itlow; it!=currtable-> attrint_i[attr_tmp].end();++it){
+							index_i.push_back((*it).second);
+						}
+					
+				}else if (op_flag_first == "lt"){
+					itup = currtable-> attrint_i[attr_tmp].upper_bound(compare_int_first-1);
+					for (it = currtable-> attrint_i[attr_tmp].begin();it!=itup; ++it){
+							index_i.push_back((*it).second);
+						}
+				}
+				
+			}
+			else{
+				if (op_flag_first == "eq"){
+					//string tmp;
+					//tmp = compare_alias_char_first[0];
+					for ( it_var = currtable-> attrvar_i[attr_tmp].equal_range(compare_alias_char_first[0]).first; 
+							  it_var !=currtable-> attrvar_i[attr_tmp].equal_range(compare_alias_char_first[0]).second; ++it_var )
+						{
+						  index_i.push_back((*it_var).second);
+						}
+				}
+			}
+			//Doing the insertion function
+			int target_number = SEL_alias.size();
+			int index_number = index_i.size();
+			for (int i=0;i<target_number;i++){
+				for (int j=0; j< index_number; j++){
+					auto tmp = SEL_alias[i];
+					int value = target_size[i];
+					if (value== -1){
+						tmp_i = currtable->attrint[tmp];
+						int tmp_index = index_i[j];
+						int_v.push_back(tmp_i[tmp_index]);
+					}else {
+						tmp_v = currtable->attrvar[tmp];
+						int tmp_index = index_i[j];
+						str_v.push_back(tmp_v[tmp_index]);
+					}
+					new_row(selecttable, int_v, str_v);
+					if (value == -1){
+						int_v.pop_front();
+					}else{
+						str_v.pop_front();
+					}
+				}
+			}
+			print_table(selecttable);
+			// Clear the element in the convert_stoi
+			convert_stoi.str("");
+			convert_stoi.clear();
 		}
-		else if(SEL_target.size() == 0){
+		else if(check_where_num[0]==2){
+			// Create Selected target table
+			if (SEL_alias[0] == "*"){
+				// get the table name (From_table_name[0]), finding the table's attrlist and attrsize
+				target_list = currtable->attrname;
+				int target_list_number = target_list.size();
+				for (int in =0; in<target_list_number; in++){
+					int value = currtable-> attrsize[target_list[in]];
+					target_size.push_back(value);
+				}
+			}
+			else if(SEL_target.size() == 0){
+				int target_number = SEL_alias.size();
+				for (int i=0;i<target_number;i++){
+					auto tmp = SEL_alias[i];
+					target_list.push_back(tmp);
+					int value = currtable-> attrsize[tmp];
+					target_size.push_back(value);
+				}
+			}
+			else if (SEL_target[0] == "*"){
+				vector <string> tmp_attr;
+				tmp_attr = currtable->attrname;
+				int target_number = currtable->attrname.size();
+				for (int i=0;i<target_number;i++){
+					string tmp_combine = SEL_alias[0] +"."+ tmp_attr[i];
+					target_list_combine.push_back(tmp_combine);
+					int value = currtable-> attrsize[tmp_attr[i]];
+					target_size.push_back(value);
+				}
+			}
+			else if (SEL_target.size()!= 0 && SEL_target[0]!= "*"){
+				int target_number = SEL_target.size();
+				for (int i=0;i<target_number;i++){
+					string tmp_combine = SEL_alias[i] +"."+ SEL_target[i];
+					target_list.push_back(SEL_target[i]);
+					target_list_combine.push_back(tmp_combine);
+					int value = currtable-> attrsize[SEL_target[i]];
+					target_size.push_back(value);
+				}
+			}
+			// Wondering why this cannot compile
+			struct Table *selecttable = new Table();
+			
+			if (target_list_combine.size()!=0){
+				selecttable = new_table(target_list_combine,target_size);
+			}else{
+				selecttable = new_table(target_list,target_size);
+			}
+
+			// Finding the indexing value and Doing the where condition's value transform
+			int target_list_number = target_list.size();
+			string attr_tmp_fir = where_condition_first_alias[0];
+			string attr_tmp_sec = where_condition_second_alias[0];
+			int value_fir = currtable-> attrsize[attr_tmp_fir];
+			int value_sec = currtable-> attrsize[attr_tmp_sec];
+			multimap<int,int>::iterator it,itlow,itup;
+			multimap<string,int>::iterator it_var;
+			
+			if (value_fir== -1){
+				convert_stoi << compare_alias_char_first[0];
+				convert_stoi >> compare_int_first;
+				convert_stoi.str("");
+				convert_stoi.clear();
+			}
+			
+			if(value_sec == -1){
+				convert_stoi << compare_alias_char_second[0];
+				convert_stoi >> compare_int_second;
+				convert_stoi.str("");
+				convert_stoi.clear();
+			}
+			
+			// Finding the index value and push back to index_i
+			if ( logical_op[0] == "OR"){
+				// The reason why I choose "set" is that it can prohibit the same value to be inserted.
+				set<int> index_i;
+				set<int> :: iterator index_it;
+				// find the indexing value which is corresponding to the first statement.
+				if (value_fir== -1){
+					if (op_flag_first == "eq"){
+						for ( it = currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).first; 
+							  it !=currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).second; ++it ){
+								  index_i.insert((*it).second);
+							  }
+					}else if (op_flag_first == "gt"){
+						itlow = currtable-> attrint_i[attr_tmp_fir].lower_bound(compare_int_first+1);
+						for (it = itlow; it!=currtable-> attrint_i[attr_tmp_fir].end();++it){
+							index_i.insert((*it).second);
+						}
+					}else {
+						itup = currtable-> attrint_i[attr_tmp_fir].upper_bound(compare_int_first-1);
+						for (it = currtable-> attrint_i[attr_tmp_fir].begin();it!=itup; ++it){
+							index_i.insert((*it).second);
+						}
+					}
+				}else{
+					if (op_flag_first == "eq"){
+						for ( it_var = currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).first; 
+							  it_var !=currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).second; ++it_var ){
+								  index_i.insert((*it_var).second);
+							  }
+					}
+				}
+				// insert the value which is corresponding to the second statement.
+				if (value_sec == -1){
+					if (op_flag_second == "eq"){
+						for ( it = currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).first; 
+							  it !=currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).second; ++it ){
+								  index_i.insert((*it).second);
+							  }
+					}else if (op_flag_second == "gt"){
+						
+						itlow = currtable-> attrint_i[attr_tmp_sec].lower_bound(compare_int_second+1);
+						for (it = itlow; it!=currtable-> attrint_i[attr_tmp_sec].end();++it){
+							index_i.insert((*it).second);
+						}
+					}else {
+						itup = currtable-> attrint_i[attr_tmp_sec].upper_bound(compare_int_second-1);
+						for (it = currtable-> attrint_i[attr_tmp_sec].begin();it!=itup; ++it){
+							index_i.insert((*it).second);
+						}
+					}
+				}else {
+					if (op_flag_second == "eq"){
+						for ( it_var = currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).first; 
+							  it_var !=currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).second; ++it_var ){
+								  index_i.insert((*it_var).second);
+							  }
+					}
+				}
+				// Insert the element
+				int target_number = target_size.size();
+				int index_number = index_i.size();
+				for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+					for (int i=0;i<target_number;i++){
+						auto tmp = target_list[i];
+						int value = target_size[i];
+						if (value== -1){
+							tmp_i = currtable->attrint[tmp];
+							int tmp_index = *index_it;
+							int_v.push_back(tmp_i[tmp_index]);
+						}else {
+							tmp_v = currtable->attrvar[tmp];
+							int tmp_index = *index_it;
+							str_v.push_back(tmp_v[tmp_index]);
+						}
+					}
+					new_row(selecttable, int_v, str_v);
+					for (int i=0;i<target_number;i++){
+						int value = target_size[i];
+						if (value == -1){
+							int_v.pop_front();
+						}else{
+							str_v.pop_front();
+						}
+					}
+				}
+			}
+			else if ( logical_op[0] == "AND"){
+				set<int> index_i_tmp;
+				set<int> index_i;
+				set<int> :: iterator index_it;
+				set<int> :: iterator it_test;
+				// find the indexing value which is corresponding to the first statement.
+				
+				if (value_fir== -1){
+					if (op_flag_first == "eq"){
+						for ( it = currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).first; 
+							  it !=currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).second; ++it ){
+								  index_i_tmp.insert((*it).second);
+							  }
+					}else if (op_flag_first == "gt"){
+						itlow = currtable-> attrint_i[attr_tmp_fir].lower_bound(compare_int_first+1);
+						for (it = itlow; it!=currtable-> attrint_i[attr_tmp_fir].end();++it){
+							index_i_tmp.insert((*it).second);
+						}
+					}else {
+						itup = currtable-> attrint_i[attr_tmp_fir].upper_bound(compare_int_first-1);
+						for (it = currtable-> attrint_i[attr_tmp_fir].begin();it!=itup; ++it){
+							index_i_tmp.insert((*it).second);
+						}
+					}
+				}else{
+					if (op_flag_first == "eq"){
+						for ( it_var = currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).first; 
+							  it_var !=currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).second; ++it_var )
+						{
+							index_i_tmp.insert((*it_var).second);
+						}
+					}
+				}
+				//If we can find the indexing value which is corresponding to the second statement and is exist in index_i_tmp, 
+				//we insert the value to insert_i.
+
+				if (value_sec == -1){
+					if (op_flag_second == "eq"){
+						for ( it = currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).first; 
+							  it !=currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).second; ++it ){
+								  if (index_i_tmp.find((*it).second)!= index_i_tmp.end()){
+									  index_i.insert((*it).second);
+								  }
+							  }
+					}else if (op_flag_second == "gt"){
+						itlow = currtable-> attrint_i[attr_tmp_sec].lower_bound(compare_int_second+1);
+						for (it = itlow; it!=currtable-> attrint_i[attr_tmp_sec].end();++it){
+							if (index_i_tmp.find((*it).second)!= index_i_tmp.end()){
+								index_i.insert((*it).second);
+							}
+						}
+					}else {
+						itup = currtable-> attrint_i[attr_tmp_sec].upper_bound(compare_int_second-1);
+						for (it = currtable-> attrint_i[attr_tmp_sec].begin();it!=itup; ++it){
+							if (index_i_tmp.find((*it).second)!= index_i_tmp.end()){
+								index_i.insert((*it).second);
+							}
+						}
+					}
+				}else{
+					if (op_flag_second == "eq"){
+						for ( it_var = currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).first; 
+							  it_var !=currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).second; ++it_var )
+						{
+							if (index_i_tmp.find((*it_var).second) != index_i_tmp.end()){
+								index_i.insert((*it_var).second);
+							}
+						}
+					}
+				}
+				
+				// Print the table
+				int target_number = target_size.size();
+				int index_number = index_i.size();
+				for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+					for (int i=0;i<target_number;i++){
+						auto tmp = target_list[i];
+						int value = target_size[i];
+						if (value== -1){
+							tmp_i = currtable->attrint[tmp];
+							int tmp_index = *index_it;
+							int_v.push_back(tmp_i[tmp_index]);
+						}else {
+							tmp_v = currtable->attrvar[tmp];
+							int tmp_index = *index_it;
+							str_v.push_back(tmp_v[tmp_index]);
+						}
+					}
+					new_row(selecttable, int_v, str_v);
+					for (int i=0;i<target_number;i++){
+						int value = target_size[i];
+						if (value == -1){
+							int_v.pop_front();
+						}else{
+							str_v.pop_front();
+						}
+					}
+				}
+			}
+			
+			print_table(selecttable);
+			// Clear the element in the convert_stoi
+			convert_stoi.str("");
+			convert_stoi.clear();
+			
+		}
+	}
+	// There is two table which is selected.
+	else if(From_table_name.size() == 2){
+		if(SEL_target.size() == 0){
+			set<string> attrname_tmp_fir(currtable->attrname.begin(),currtable->attrname.end());
+			set<string> attrname_tmp_sec(currtable_sec->attrname.begin(),currtable_sec->attrname.end());
 			int target_number = SEL_alias.size();
 			for (int i=0;i<target_number;i++){
 				auto tmp = SEL_alias[i];
-				target_list.push_back(tmp);
-				int value = currtable-> attrsize[tmp];
-				target_size.push_back(value);
+				if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+					target_list.push_back(tmp);
+					int value = currtable-> attrsize[tmp];
+					target_size.push_back(value);
+				}
+				else if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+					target_list.push_back(tmp);
+					int value = currtable_sec-> attrsize[tmp];
+					target_size.push_back(value);
+				}else
+				{
+					cout << "error: ";
+					cout <<" The Selected element" << tmp <<" doesn't exist in the table"<<endl;
+					return;
+				}
 			}
 		}
-		else if (SEL_target[0] == "*"){
+		else if (From_alias.size()!=0){	//Means that users defines the alias
+			int SEL_alias_size = SEL_alias.size();
+			for (int i=0;i<SEL_alias_size;i++){
+				string tmp = SEL_alias[i];
+				//Separate the SEL_alias is true alias or target_name 	
+				if (alias_name_to_table.find(tmp)==alias_name_to_table.end()){	
+					target_list_combine.push_back(tmp);
+				}
+			}
+			
+			
+			/*
 			vector <string> tmp_attr;
 			tmp_attr = currtable->attrname;
 			int target_number = currtable->attrname.size();
@@ -678,6 +975,7 @@ void select (lua_State* L)
 				int value = currtable-> attrsize[tmp_attr[i]];
 				target_size.push_back(value);
 			}
+			*/
 		}
 		else if (SEL_target.size()!= 0 && SEL_target[0]!= "*"){
 			int target_number = SEL_target.size();
@@ -689,231 +987,14 @@ void select (lua_State* L)
 				target_size.push_back(value);
 			}
 		}
-		// Wondering why this cannot compile
 		struct Table *selecttable = new Table();
-		
+			
 		if (target_list_combine.size()!=0){
 			selecttable = new_table(target_list_combine,target_size);
 		}else{
 			selecttable = new_table(target_list,target_size);
 		}
-
-		// Finding the indexing value and Doing the where condition's value transform
-		int target_list_number = target_list.size();
-		string attr_tmp_fir = where_condition_first_alias[0];
-		string attr_tmp_sec = where_condition_second_alias[0];
-		int value_fir = currtable-> attrsize[attr_tmp_fir];
-		int value_sec = currtable-> attrsize[attr_tmp_sec];
-		multimap<int,int>::iterator it,itlow,itup;
-		multimap<string,int>::iterator it_var;
-		
-		if (value_fir== -1){
-			convert_stoi << compare_alias_char_first[0];
-			convert_stoi >> compare_int_first;
-			convert_stoi.str("");
-			convert_stoi.clear();
-		}
-		
-		if(value_sec == -1){
-			convert_stoi << compare_alias_char_second[0];
-			convert_stoi >> compare_int_second;
-			convert_stoi.str("");
-			convert_stoi.clear();
-		}
-		
-		// Finding the index value and push back to index_i
-		if ( logical_op[0] == "OR"){
-			// The reason why I choose "set" is that it can prohibit the same value to be inserted.
-			set<int> index_i;
-			set<int> :: iterator index_it;
-			// find the indexing value which is corresponding to the first statement.
-			if (value_fir== -1){
-				if (op_flag_first == "eq"){
-					for ( it = currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).first; 
-						  it !=currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).second; ++it ){
-							  index_i.insert((*it).second);
-						  }
-				}else if (op_flag_first == "gt"){
-					itlow = currtable-> attrint_i[attr_tmp_fir].lower_bound(compare_int_first+1);
-					for (it = itlow; it!=currtable-> attrint_i[attr_tmp_fir].end();++it){
-						index_i.insert((*it).second);
-					}
-				}else {
-					itup = currtable-> attrint_i[attr_tmp_fir].upper_bound(compare_int_first-1);
-					for (it = currtable-> attrint_i[attr_tmp_fir].begin();it!=itup; ++it){
-						index_i.insert((*it).second);
-					}
-				}
-			}else{
-				if (op_flag_first == "eq"){
-					for ( it_var = currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).first; 
-						  it_var !=currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).second; ++it_var ){
-							  index_i.insert((*it_var).second);
-						  }
-				}
-			}
-			// insert the value which is corresponding to the second statement.
-			if (value_sec == -1){
-				if (op_flag_second == "eq"){
-					for ( it = currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).first; 
-						  it !=currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).second; ++it ){
-							  index_i.insert((*it).second);
-						  }
-				}else if (op_flag_second == "gt"){
-					
-					itlow = currtable-> attrint_i[attr_tmp_sec].lower_bound(compare_int_second+1);
-					for (it = itlow; it!=currtable-> attrint_i[attr_tmp_sec].end();++it){
-						index_i.insert((*it).second);
-					}
-				}else {
-					itup = currtable-> attrint_i[attr_tmp_sec].upper_bound(compare_int_second-1);
-					for (it = currtable-> attrint_i[attr_tmp_sec].begin();it!=itup; ++it){
-						index_i.insert((*it).second);
-					}
-				}
-			}else {
-				if (op_flag_second == "eq"){
-					for ( it_var = currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).first; 
-						  it_var !=currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).second; ++it_var ){
-							  index_i.insert((*it_var).second);
-						  }
-				}
-			}
-			// Insert the element
-			int target_number = target_size.size();
-			int index_number = index_i.size();
-			for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
-				for (int i=0;i<target_number;i++){
-					auto tmp = target_list[i];
-					int value = target_size[i];
-					if (value== -1){
-						tmp_i = currtable->attrint[tmp];
-						int tmp_index = *index_it;
-						int_v.push_back(tmp_i[tmp_index]);
-					}else {
-						tmp_v = currtable->attrvar[tmp];
-						int tmp_index = *index_it;
-						str_v.push_back(tmp_v[tmp_index]);
-					}
-				}
-				new_row(selecttable, int_v, str_v);
-				for (int i=0;i<target_number;i++){
-					int value = target_size[i];
-					if (value == -1){
-						int_v.pop_front();
-					}else{
-						str_v.pop_front();
-					}
-				}
-			}
-		}
-		else if ( logical_op[0] == "AND"){
-			set<int> index_i_tmp;
-			set<int> index_i;
-			set<int> :: iterator index_it;
-			set<int> :: iterator it_test;
-			// find the indexing value which is corresponding to the first statement.
-			
-			if (value_fir== -1){
-				if (op_flag_first == "eq"){
-					for ( it = currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).first; 
-						  it !=currtable-> attrint_i[attr_tmp_fir].equal_range(compare_int_first).second; ++it ){
-							  index_i_tmp.insert((*it).second);
-						  }
-				}else if (op_flag_first == "gt"){
-					itlow = currtable-> attrint_i[attr_tmp_fir].lower_bound(compare_int_first+1);
-					for (it = itlow; it!=currtable-> attrint_i[attr_tmp_fir].end();++it){
-						index_i_tmp.insert((*it).second);
-					}
-				}else {
-					itup = currtable-> attrint_i[attr_tmp_fir].upper_bound(compare_int_first-1);
-					for (it = currtable-> attrint_i[attr_tmp_fir].begin();it!=itup; ++it){
-						index_i_tmp.insert((*it).second);
-					}
-				}
-			}else{
-				if (op_flag_first == "eq"){
-					for ( it_var = currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).first; 
-						  it_var !=currtable-> attrvar_i[attr_tmp_fir].equal_range(compare_alias_char_first[0]).second; ++it_var )
-					{
-						index_i_tmp.insert((*it_var).second);
-					}
-				}
-			}
-			//If we can find the indexing value which is corresponding to the second statement and is exist in index_i_tmp, 
-			//we insert the value to insert_i.
-
-			if (value_sec == -1){
-				if (op_flag_second == "eq"){
-					for ( it = currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).first; 
-						  it !=currtable-> attrint_i[attr_tmp_sec].equal_range(compare_int_second).second; ++it ){
-							  if (index_i_tmp.find((*it).second)!= index_i_tmp.end()){
-								  index_i.insert((*it).second);
-							  }
-						  }
-				}else if (op_flag_second == "gt"){
-					itlow = currtable-> attrint_i[attr_tmp_sec].lower_bound(compare_int_second+1);
-					for (it = itlow; it!=currtable-> attrint_i[attr_tmp_sec].end();++it){
-						if (index_i_tmp.find((*it).second)!= index_i_tmp.end()){
-							index_i.insert((*it).second);
-						}
-					}
-				}else {
-					itup = currtable-> attrint_i[attr_tmp_sec].upper_bound(compare_int_second-1);
-					for (it = currtable-> attrint_i[attr_tmp_sec].begin();it!=itup; ++it){
-						if (index_i_tmp.find((*it).second)!= index_i_tmp.end()){
-							index_i.insert((*it).second);
-						}
-					}
-				}
-			}else{
-				if (op_flag_second == "eq"){
-					for ( it_var = currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).first; 
-						  it_var !=currtable-> attrvar_i[attr_tmp_sec].equal_range(compare_alias_char_second[0]).second; ++it_var )
-					{
-						if (index_i_tmp.find((*it_var).second) != index_i_tmp.end()){
-							index_i.insert((*it_var).second);
-						}
-					}
-				}
-			}
-			
-			// Print the table
-			int target_number = target_size.size();
-			int index_number = index_i.size();
-			for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
-				for (int i=0;i<target_number;i++){
-					auto tmp = target_list[i];
-					int value = target_size[i];
-					if (value== -1){
-						tmp_i = currtable->attrint[tmp];
-						int tmp_index = *index_it;
-						int_v.push_back(tmp_i[tmp_index]);
-					}else {
-						tmp_v = currtable->attrvar[tmp];
-						int tmp_index = *index_it;
-						str_v.push_back(tmp_v[tmp_index]);
-					}
-				}
-				new_row(selecttable, int_v, str_v);
-				for (int i=0;i<target_number;i++){
-					int value = target_size[i];
-					if (value == -1){
-						int_v.pop_front();
-					}else{
-						str_v.pop_front();
-					}
-				}
-			}
-		}
-		
-		print_table(selecttable);
-		// Clear the element in the convert_stoi
-		convert_stoi.str("");
-		convert_stoi.clear();
-		
 	}
-	
 }
 
 
