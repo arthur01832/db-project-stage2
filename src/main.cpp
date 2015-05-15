@@ -7,6 +7,9 @@
 #include <deque>
 #include <cstdint>
 #include <cassert>
+#include <time.h>
+#include <cstring>
+#include <fstream>
 #include <sstream>
 
 #include "lua.hpp"
@@ -1043,14 +1046,87 @@ void print_tables()
         }
     }
 }
+void save_tables(){
+    char filename[]="saveFile.sql";
+    fstream fp;
+    fp.open(filename, ios::out);
+    //fp<<"Hello HappyMan!!"<<endl;
 
+    for(auto it = tables.begin(); it != tables.end(); ++it){
+        vector<int> attr_size;
+        deque<vector<int>> attr_int;
+        deque<vector<string>> attr_var;
+        fp<<"CREATE TABLE "<<it->first<<" (";
+        auto table = it->second;
+        int k=0;
+        for(auto str:table->attrname) {
+
+            if (str == table->primkey){
+                if(table->attrsize[str]==-1)
+                    fp<<str.c_str()<<" int PRIMARY KEY ";
+
+                else
+                    fp<<str.c_str()<<" varchar("<<table->attrsize[str]<<") PRIMARY KEY ";
+            }
+
+            else{
+                if(table->attrsize[str]==-1)
+                   fp<<str.c_str()<<" int ";
+                else
+                    fp<<str.c_str()<<" varchar("<<table->attrsize[str]<<") ";
+
+            }
+            k++;
+
+            if(k==table->attrname.size())
+                fp<<");"<<endl;
+            else
+                fp<<",";
+        }
+            for(auto str:table->attrname) {
+            attr_size.push_back(table->attrsize[str]);
+            if (attr_size.back() == -1)
+                attr_int.push_back(table->attrint[str]);
+            else
+                attr_var.push_back(table->attrvar[str]);
+        }
+
+            for(int i = 0; i < table->rownum; i++) {
+
+                    fp<<"INSERT INTO "<<it->first<<" VALUES (";
+            for(int j = 0; j < attr_size.size(); j++) {
+
+                if (attr_size[j] == -1) {
+                    fp<<attr_int.front()[i];
+                    attr_int.push_back(attr_int.front());
+                    attr_int.pop_front();
+                } else {
+                    fp<<"\'"<<attr_var.front()[i].c_str()<<"\'";
+                    attr_var.push_back(attr_var.front());
+                    attr_var.pop_front();
+                }
+                if(j==attr_size.size()-1)
+                    fp<<");"<<endl;
+                else
+                    fp<<",";
+            }
+
+
+        }
+
+    }
+    return;
+}
 
 int main(int argc, char* argv[])
 {
+	clock_t start, finish;
+	double time_length;
 	char* inputfilename = nullptr;
     if (argc < 2) {
         cout << "Usage: " << argv[0] << " <Input File>" << endl;
         return 0;
+
     } else {
         inputfilename = argv[1];
     }
@@ -1060,8 +1136,8 @@ int main(int argc, char* argv[])
 
     int status = luaL_loadfile(L, "src/parser.lua");
     if (status) {
-        // If something went wrong, error message is at the top of 
-        // the stack 
+        // If something went wrong, error message is at the top of
+        // the stack
         cout << lua_tostring(L, -1) << endl;
         exit(1);
     }
@@ -1074,8 +1150,8 @@ int main(int argc, char* argv[])
     lua_getglobal(L, "parseCommand");
     lua_pushnil(L);
     lua_pushstring(L, inputfilename);
-
-    while (1) {
+    start = clock();
+    while(1) {
         result = lua_pcall(L, 2, 1, 0);
         if (result) {
             cout << lua_tostring(L, -1) << endl;
@@ -1090,12 +1166,14 @@ int main(int argc, char* argv[])
                 lua_rawget(L, -2);
                 auto op = string(lua_tostring(L, -1));
                 lua_pop(L, 1);
+
                 if (op == "CREATE TABLE") {
                     cout << "Creating table...";
                     create_table(L);
                 } else if (op == "INSERT INTO") {
                     cout << "Inserting row...";
                     insert_into(L);
+
                 } else if (op == "SELECT") {
                     // TODO
 					//printf("SELECT is not yet implemented!\n");
@@ -1109,7 +1187,9 @@ int main(int argc, char* argv[])
             // Pop command list
             lua_pop(L, 1);
         }
-
+        finish = clock();
+        time_length = (double)(finish - start) / CLOCKS_PER_SEC;
+        cout<<"Time used : "<<time_length<<" second."<<endl;
         print_tables();
 
         cout << "\n>> ";
@@ -1122,7 +1202,17 @@ int main(int argc, char* argv[])
 			lua_pushnil(L);
 			std::getline (std::cin, buf);
 			lua_pushstring(L, buf.c_str());
-			
+
+		}
+		else if(buf[0] == 's'){
+            start = clock();
+            cout << "Saving...";
+            save_tables();
+            finish = clock();
+            time_length = (double)(finish - start) / CLOCKS_PER_SEC;
+            cout<<"Time used : "<<time_length<<" second."<<endl;
+            print_tables();
+
 		}
 		else {
             lua_getglobal(L, "parseCommand");
