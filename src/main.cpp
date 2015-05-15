@@ -1150,8 +1150,9 @@ int main(int argc, char* argv[])
     lua_getglobal(L, "parseCommand");
     lua_pushnil(L);
     lua_pushstring(L, inputfilename);
-    start = clock();
+
     while(1) {
+    start = clock();
         result = lua_pcall(L, 2, 1, 0);
         if (result) {
             cout << lua_tostring(L, -1) << endl;
@@ -1212,6 +1213,8 @@ int main(int argc, char* argv[])
             time_length = (double)(finish - start) / CLOCKS_PER_SEC;
             cout<<"Time used : "<<time_length<<" second."<<endl;
             print_tables();
+            lua_getglobal(L, "parseCommand");
+            lua_pushnil(L);
 
 		}
 		else {
