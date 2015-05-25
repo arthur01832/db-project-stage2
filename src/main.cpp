@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cassert>
 #include <sstream>
+#include <unordered_set>
 
 #include "lua.hpp"
 
@@ -354,8 +355,9 @@ void select (lua_State* L)
 	vector<string> SEL_target;					// all select target list
 	vector<string> opt;							// function_opt = COUNT or SUM
 	
-	vector<string> From_table_name;			
+	vector<string> From_table_name;
 	vector<string> From_alias;
+	
 	/* The example for all variation: e.g WHERE authorId = 1 OR pages < 200; 
 	   check_where_num=2; where_condition_first_alias = authorId; op_flag_first = "eq";compare_int_first = 1;
 	   logical_op = OR;
@@ -366,8 +368,8 @@ void select (lua_State* L)
 	vector<string> where_condition_first_attrname;
 	vector<string> where_condition_second_alias;
 	vector<string> where_condition_second_attrname;
-	vector<string> logical_op;			
-	string op_flag_first;				
+	vector<string> logical_op;
+	string op_flag_first;		
 	string op_flag_second;
 	vector<string> compare_alias_char_first;
 	vector<string> compare_attr_char_first;
@@ -377,6 +379,8 @@ void select (lua_State* L)
 	int compare_int_second;
 	// Convert the string to integer
 	stringstream convert_stoi;
+	/*{key,value} = {alias, table_name};*/
+	map<string,string> alias_name_to_table;				
 	
 	// Extract the lua parser the command
 	for (auto i=2;i<=command_num;i++){
@@ -405,31 +409,34 @@ void select (lua_State* L)
 				}
 				lua_pop(L,1);
 			} 
-		} else if (i==3) {			
+		}
+		else if (i==3) {			
 			for (auto j=1;j<=check_elem;j++){
 				lua_rawgeti(L,-1,j);
 				int check_subelem = lua_objlen(L,-1);
-				string tmp;
+				string tmp_table;
+				string tmp_alias;
 				for (auto k=1;k<=check_subelem;k++) {
 					if (k==1){
 						lua_rawgeti(L,-1,k);
-						tmp = lua_tostring(L, -1);
-						From_table_name.push_back(tmp);
+						tmp_table = lua_tostring(L, -1);
+						From_table_name.push_back(tmp_table);
 						lua_pop(L,1);
 					}
-					From_alias.push_back(tmp);
+					tmp_alias = tmp_table;
 					/* IF there is a true alias define, we erase the first element 
 					*  and then we push_back the true alias define.*/
 					if (k == 2){
-						From_alias.erase(From_alias.begin());
 						lua_rawgeti(L,-1,k);
-						From_alias.push_back(string(lua_tostring(L, -1)));
+						tmp_alias = lua_tostring(L, -1);
 						lua_pop(L,1);
 					}
 				}
+				alias_name_to_table.insert(pair<string,string>(tmp_alias,tmp_table));
 				lua_pop(L,1);
 			}
-		} else {
+		}
+		else {
 			for (auto j=1;j<=check_elem;j++){
 				lua_rawgeti(L,-1,j);
 				int check_subelem = lua_objlen(L,-1);
@@ -483,7 +490,7 @@ void select (lua_State* L)
 		}
 		lua_pop(L,1);
 	}
-	// define check_where_number
+	// define the number of where conditions(var:check_where_number) 
 	int wii = check_where_num.empty();
 	int lii = logical_op.empty();
 	if(wii ==1){
@@ -492,20 +499,11 @@ void select (lua_State* L)
 		check_where_num[0] = check_where_num[0] -1;
 	}
 	
-	// mapping alias to table name
-	map<string,string> alias_name_to_table;				//{key,value} = {alias, table_name};
-	int table_number = From_table_name.size();
-	int alias_number = From_alias.size();
-	if (alias_number != 0){
-		for (int i =0;i<table_number;i++){
-			alias_name_to_table.insert({From_alias[i],From_table_name[i]});
-		}
-	}
-	
 	
 	
 	struct Table* currtable = nullptr;
 	struct Table* currtable_sec = nullptr;
+	struct Table* currtable_tmp = nullptr;
 	
 	if(tables.find(From_table_name[0]) != tables.end()) {
         currtable = tables[From_table_name[0]];
@@ -597,7 +595,8 @@ void select (lua_State* L)
 			int value = currtable-> attrsize[attr_tmp];
 			multimap<int,int>::iterator it,itlow,itup,eqit;
 			multimap<string,int>::iterator it_var;
-			vector<int> index_i;
+			set<int> index_i;
+			set<int> :: iterator index_it;
 			
 			if (value== -1){
 				// Converting the string to integer if the attribute is the integer
@@ -607,18 +606,18 @@ void select (lua_State* L)
 				if (op_flag_first == "eq"){
 					for ( it = currtable-> attrint_i[attr_tmp].equal_range(compare_int_first).first; 
 							  it !=currtable-> attrint_i[attr_tmp].equal_range(compare_int_first).second; ++it ){
-								  index_i.push_back((*it).second);
+								  index_i.insert((*it).second);
 							  }
 				}else if (op_flag_first == "gt"){
 					itlow = currtable-> attrint_i[attr_tmp].lower_bound(compare_int_first+1);
 					for (it = itlow; it!=currtable-> attrint_i[attr_tmp].end();++it){
-							index_i.push_back((*it).second);
+							index_i.insert((*it).second);
 						}
 					
 				}else if (op_flag_first == "lt"){
 					itup = currtable-> attrint_i[attr_tmp].upper_bound(compare_int_first-1);
 					for (it = currtable-> attrint_i[attr_tmp].begin();it!=itup; ++it){
-							index_i.push_back((*it).second);
+							index_i.insert((*it).second);
 						}
 				}
 				
@@ -630,27 +629,30 @@ void select (lua_State* L)
 					for ( it_var = currtable-> attrvar_i[attr_tmp].equal_range(compare_alias_char_first[0]).first; 
 							  it_var !=currtable-> attrvar_i[attr_tmp].equal_range(compare_alias_char_first[0]).second; ++it_var )
 						{
-						  index_i.push_back((*it_var).second);
+						  index_i.insert((*it_var).second);
 						}
 				}
 			}
 			//Doing the insertion function
-			int target_number = SEL_alias.size();
+			int target_number = target_list.size();
 			int index_number = index_i.size();
-			for (int i=0;i<target_number;i++){
-				for (int j=0; j< index_number; j++){
-					auto tmp = SEL_alias[i];
+			for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+				for (int i=0;i<target_number;i++){
+					auto tmp = target_list[i];
 					int value = target_size[i];
 					if (value== -1){
 						tmp_i = currtable->attrint[tmp];
-						int tmp_index = index_i[j];
+						int tmp_index = *index_it;
 						int_v.push_back(tmp_i[tmp_index]);
 					}else {
 						tmp_v = currtable->attrvar[tmp];
-						int tmp_index = index_i[j];
+						int tmp_index = *index_it;
 						str_v.push_back(tmp_v[tmp_index]);
 					}
-					new_row(selecttable, int_v, str_v);
+				}
+				new_row(selecttable, int_v, str_v);
+				for (int i=0;i<target_number;i++){
+					int value = target_size[i];
 					if (value == -1){
 						int_v.pop_front();
 					}else{
@@ -684,13 +686,12 @@ void select (lua_State* L)
 				}
 			}
 			else if (SEL_target[0] == "*"){
-				vector <string> tmp_attr;
-				tmp_attr = currtable->attrname;
+				target_list = currtable->attrname;
 				int target_number = currtable->attrname.size();
 				for (int i=0;i<target_number;i++){
-					string tmp_combine = SEL_alias[0] +"."+ tmp_attr[i];
+					string tmp_combine = SEL_alias[0] +"."+ target_list[i];
 					target_list_combine.push_back(tmp_combine);
-					int value = currtable-> attrsize[tmp_attr[i]];
+					int value = currtable-> attrsize[target_list[i]];
 					target_size.push_back(value);
 				}
 			}
@@ -704,7 +705,7 @@ void select (lua_State* L)
 					target_size.push_back(value);
 				}
 			}
-			// Wondering why this cannot compile
+			
 			struct Table *selecttable = new Table();
 			
 			if (target_list_combine.size()!=0){
@@ -721,7 +722,7 @@ void select (lua_State* L)
 			int value_sec = currtable-> attrsize[attr_tmp_sec];
 			multimap<int,int>::iterator it,itlow,itup;
 			multimap<string,int>::iterator it_var;
-			
+			// convert string number to int number 
 			if (value_fir== -1){
 				convert_stoi << compare_alias_char_first[0];
 				convert_stoi >> compare_int_first;
@@ -735,7 +736,10 @@ void select (lua_State* L)
 				convert_stoi.str("");
 				convert_stoi.clear();
 			}
-			
+			if (compare_int_first == 0 || compare_int_second ==0){
+				cout << "error: different type "<<endl;
+				return;
+			}
 			// Finding the index value and push back to index_i
 			if ( logical_op[0] == "OR"){
 				// The reason why I choose "set" is that it can prohibit the same value to be inserted.
@@ -930,13 +934,20 @@ void select (lua_State* L)
 		}
 	}
 	// There is two table which is selected.
+	
 	else if(From_table_name.size() == 2){
-		if(SEL_target.size() == 0){
-			set<string> attrname_tmp_fir(currtable->attrname.begin(),currtable->attrname.end());
-			set<string> attrname_tmp_sec(currtable_sec->attrname.begin(),currtable_sec->attrname.end());
+		set<string> attrname_tmp_fir(currtable->attrname.begin(),currtable->attrname.end());
+		set<string> attrname_tmp_sec(currtable_sec->attrname.begin(),currtable_sec->attrname.end());
+		// Searching the selecting attribute
+		if(SEL_target.size() == 0){	
 			int target_number = SEL_alias.size();
+			// If the user doesn't define the alias, then I scan both of two tables and get the attr_name and attr_value
 			for (int i=0;i<target_number;i++){
 				auto tmp = SEL_alias[i];
+				if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end() && attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+					cout << "the attribute: "<< tmp <<" “authorId” is ambiguous, as it appears in both table";
+					return;
+				}
 				if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
 					target_list.push_back(tmp);
 					int value = currtable-> attrsize[tmp];
@@ -954,47 +965,106 @@ void select (lua_State* L)
 				}
 			}
 		}
-		else if (From_alias.size()!=0){	//Means that users defines the alias
-			int SEL_alias_size = SEL_alias.size();
-			for (int i=0;i<SEL_alias_size;i++){
-				string tmp = SEL_alias[i];
-				//Separate the SEL_alias is true alias or target_name 	
-				if (alias_name_to_table.find(tmp)==alias_name_to_table.end()){	
-					target_list_combine.push_back(tmp);
+		//Means that users defines the alias
+		else{
+			if (SEL_target[0]=="*")
+			{
+				string which_table;
+				which_table = alias_name_to_table.find(SEL_alias[0])->second;
+				currtable_tmp = tables[which_table];
+				target_list = currtable_tmp->attrname;
+				int target_number = currtable_tmp->attrname.size();
+				for (int i=0;i<target_number;i++){
+					string tmp_combine = SEL_alias[0] +"."+ target_list[i];
+					target_list_combine.push_back(tmp_combine);
+					int value = currtable_tmp-> attrsize[target_list[i]];
+					target_size.push_back(value);
 				}
 			}
-			
-			
-			/*
-			vector <string> tmp_attr;
-			tmp_attr = currtable->attrname;
-			int target_number = currtable->attrname.size();
-			for (int i=0;i<target_number;i++){
-				string tmp_combine = SEL_alias[0] +"."+ tmp_attr[i];
-				target_list_combine.push_back(tmp_combine);
-				int value = currtable-> attrsize[tmp_attr[i]];
-				target_size.push_back(value);
+			else{
+				int SEL_alias_size = SEL_alias.size();
+				for (int i=0;i<SEL_alias_size;i++){
+					string tmp_alias = SEL_alias[i];
+					if (alias_name_to_table.find(tmp_alias)!=alias_name_to_table.end()){
+						string which_table;
+						which_table = alias_name_to_table.find(tmp_alias)->second;
+						cout <<"Which table's name:"<< which_table;
+						currtable_tmp = tables[which_table];
+						target_list.push_back(SEL_target[i]);
+						string tmp_combine = SEL_alias[i] +"."+ SEL_target[i];
+						target_list_combine.push_back(tmp_combine);
+						int value = currtable_tmp-> attrsize[SEL_target[i]];
+						cout << value<<endl;
+						target_size.push_back(value);
+					}
+					else if (alias_name_to_table.find(tmp_alias)==alias_name_to_table.end()){
+						target_list_combine.push_back(tmp_alias);
+						if (attrname_tmp_fir.find(tmp_alias)!=attrname_tmp_fir.end()){
+							target_list.push_back(tmp_alias);
+							int value = currtable-> attrsize[tmp_alias];
+							target_size.push_back(value);
+						}
+						else if (attrname_tmp_sec.find(tmp_alias)!=attrname_tmp_sec.end()){
+							target_list.push_back(tmp_alias);
+							int value = currtable_sec-> attrsize[tmp_alias];
+							target_size.push_back(value);
+						}
+					}
+				}
 			}
-			*/
 		}
-		else if (SEL_target.size()!= 0 && SEL_target[0]!= "*"){
-			int target_number = SEL_target.size();
-			for (int i=0;i<target_number;i++){
-				string tmp_combine = SEL_alias[i] +"."+ SEL_target[i];
-				target_list.push_back(SEL_target[i]);
-				target_list_combine.push_back(tmp_combine);
-				int value = currtable-> attrsize[SEL_target[i]];
-				target_size.push_back(value);
-			}
-		}
+		
 		struct Table *selecttable = new Table();
-			
+		
 		if (target_list_combine.size()!=0){
 			selecttable = new_table(target_list_combine,target_size);
 		}else{
 			selecttable = new_table(target_list,target_size);
 		}
+		print_table(selecttable);
+		/*
+		// if the logical_op's size equal to 0, it means that user only define one where condition. 
+		if(logical_op.size()==0){
+			string tmp_alias = where_condition_first_alias[0];
+			string which_table = alias_name_to_table.find(tmp_alias)->second;
+			currtable = tables[which_table];
+			string tmp_attr_fir = where_condition_first_attrname[0];
+			int value_fir = currtable-> attrsize[tmp_attr_fir];
+			string tmp_alias_sec = compare_alias_char_first[0];
+			string which_table = alias_name_to_table.find(tmp_alias_sec)->second;
+			currtable_sec = tables[which_table];
+			string tmp_attr_sec = compare_attr_char_first[0];
+			int value_sec = currtable_sec-> attrsize[tmp_attr_sec];
+			if (value_fir == value_sec){
+				multimap<int,int>::iterator it,itlow,itup;
+				multimap<string,int>::iterator it_var;
+				if(value_fir == -1){
+					for (it = currtable-> attrint_i[tmp_attr_fir].begin();it !=currtable-> attrint_i[tmp_attr_fir].end();++it){
+						
+					}
+				}
+				else{
+					for (it = currtable-> attrvar_i[tmp_attr_fir].begin();it !=currtable-> attrvar_i[tmp_attr_fir].end();++it)
+					
+				}currtable
+			}else{
+				cout << "error: different types and cannot be compared."<<endl;
+				return;
+			}
+		}else{
+			if(logical_op[0] == "AND"){
+				
+			}else if (logical_op[0]== "OR"){
+				
+			}
+		}
+		
+		*/
+		
+		
+		
 	}
+	
 }
 
 
