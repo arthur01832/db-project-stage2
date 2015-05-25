@@ -2289,11 +2289,6 @@ int main(int argc, char* argv[])
         finish = clock();
         time_length = (double)(finish - start) / CLOCKS_PER_SEC;
         cout<<"Time used : "<<time_length<<" second."<<endl;
-        if(struct_type==0)
-            print_tables();
-        else
-            print_tables_h();
-        cout << "\n>> ";
         string buf;
         std::getline (std::cin, buf);
         if(buf[0] == 'q') {
@@ -2305,6 +2300,14 @@ int main(int argc, char* argv[])
 			lua_pushstring(L, buf.c_str());
 
 		}
+		else if(buf[0] == 'p'&&buf[1] == 'r'&&buf[2] == 'i'&&buf[3] == 'n'&&buf[4] =='t'){
+            if(struct_type==0)
+                print_tables();
+            else
+                print_tables_h();
+            lua_getglobal(L, "parseCommand");
+            lua_pushnil(L);
+		}
 		else if(buf[0] == 's'&&buf[1] == 'a'&&buf[2] == 'v'&&buf[3] == 'e'){
             start = clock();
             cout << "Saving...";
@@ -2315,13 +2318,23 @@ int main(int argc, char* argv[])
             finish = clock();
             time_length = (double)(finish - start) / CLOCKS_PER_SEC;
             cout<<"Time used : "<<time_length<<" second."<<endl;
-            if(struct_type==0)
-                print_tables();
-            else
-                print_tables_h();
             lua_getglobal(L, "parseCommand");
             lua_pushnil(L);
 
+		}
+		else if(buf[0] == 'l'&&buf[1] == 'o'&&buf[2] == 'a'&&buf[3] == 'd'){
+
+            cout << "Enter file name"<<endl;
+            string filename;
+            std::getline (std::cin, filename);
+            start = clock();
+            lua_getglobal(L, "parseCommand");
+            lua_pushnil(L);
+            lua_pushstring(L, filename.c_str());
+            cout << "Loading...";
+            finish = clock();
+            time_length = (double)(finish - start) / CLOCKS_PER_SEC;
+            cout<<"Time used : "<<time_length<<" second."<<endl;
 		}
 		else {
             lua_getglobal(L, "parseCommand");
