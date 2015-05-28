@@ -1223,35 +1223,52 @@ void select (lua_State* L)
 					return;
 				}
 				else if (opt[0] == "SUM"){
+					if (target_size[0] == -1){
+						int sum = 0;
+						for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+							tmp_i = currtable->attrint[target_list[0]];
+							sum = sum + tmp_i[*index_it];
+						}
+						cout << "SUM ("<< SEL_alias[0]<<")"<<endl;
+						cout << sum << endl;
+						return;
+					}else{
+						cout << "ERROR:"<<endl;
+						cout << "We cannot add string type"<<endl;
+						return;
+					}
 					
 				}
-				// Insert the element
-				int target_number = target_size.size();
-				int index_number = index_i.size();
-				for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
-					for (int i=0;i<target_number;i++){
-						auto tmp = target_list[i];
-						int value = target_size[i];
-						if (value== -1){
-							tmp_i = currtable->attrint[tmp];
-							int tmp_index = *index_it;
-							int_v.push_back(tmp_i[tmp_index]);
-						}else {
-							tmp_v = currtable->attrvar[tmp];
-							int tmp_index = *index_it;
-							str_v.push_back(tmp_v[tmp_index]);
+				else {
+					// Insert the element
+					int target_number = target_size.size();
+					int index_number = index_i.size();
+					for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+						for (int i=0;i<target_number;i++){
+							auto tmp = target_list[i];
+							int value = target_size[i];
+							if (value== -1){
+								tmp_i = currtable->attrint[tmp];
+								int tmp_index = *index_it;
+								int_v.push_back(tmp_i[tmp_index]);
+							}else {
+								tmp_v = currtable->attrvar[tmp];
+								int tmp_index = *index_it;
+								str_v.push_back(tmp_v[tmp_index]);
+							}
 						}
-					}
-					new_row(selecttable, int_v, str_v);
-					for (int i=0;i<target_number;i++){
-						int value = target_size[i];
-						if (value == -1){
-							int_v.pop_front();
-						}else{
-							str_v.pop_front();
+						new_row(selecttable, int_v, str_v);
+						for (int i=0;i<target_number;i++){
+							int value = target_size[i];
+							if (value == -1){
+								int_v.pop_front();
+							}else{
+								str_v.pop_front();
+							}
 						}
 					}
 				}
+				
 			}
 			else if ( logical_op[0] == "AND"){
 				set<int> index_i_tmp;
@@ -1363,30 +1380,54 @@ void select (lua_State* L)
 					}
 				}
 				
-				// Print the table
-				int target_number = target_size.size();
-				int index_number = index_i.size();
-				for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
-					for (int i=0;i<target_number;i++){
-						auto tmp = target_list[i];
-						int value = target_size[i];
-						if (value== -1){
-							tmp_i = currtable->attrint[tmp];
-							int tmp_index = *index_it;
-							int_v.push_back(tmp_i[tmp_index]);
-						}else {
-							tmp_v = currtable->attrvar[tmp];
-							int tmp_index = *index_it;
-							str_v.push_back(tmp_v[tmp_index]);
+				if (opt[0] == "COUNT"){
+					cout << "COUNT("<< SEL_alias[0]<<")"<<endl;
+					cout << index_i.size()<<endl;
+					return;
+				}
+				else if (opt[0] == "SUM"){
+					if (target_size[0] == -1){
+						int sum = 0;
+						for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+							tmp_i = currtable->attrint[target_list[0]];
+							sum = sum + tmp_i[*index_it];
 						}
+						cout << "SUM ("<< SEL_alias[0]<<")"<<endl;
+						cout << sum << endl;
+						return;
+					}else{
+						cout << "ERROR:"<<endl;
+						cout << "We cannot add string type"<<endl;
+						return;
 					}
-					new_row(selecttable, int_v, str_v);
-					for (int i=0;i<target_number;i++){
-						int value = target_size[i];
-						if (value == -1){
-							int_v.pop_front();
-						}else{
-							str_v.pop_front();
+					
+				}
+				else {
+					// Print the table
+					int target_number = target_size.size();
+					int index_number = index_i.size();
+					for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+						for (int i=0;i<target_number;i++){
+							auto tmp = target_list[i];
+							int value = target_size[i];
+							if (value== -1){
+								tmp_i = currtable->attrint[tmp];
+								int tmp_index = *index_it;
+								int_v.push_back(tmp_i[tmp_index]);
+							}else {
+								tmp_v = currtable->attrvar[tmp];
+								int tmp_index = *index_it;
+								str_v.push_back(tmp_v[tmp_index]);
+							}
+						}
+						new_row(selecttable, int_v, str_v);
+						for (int i=0;i<target_number;i++){
+							int value = target_size[i];
+							if (value == -1){
+								int_v.pop_front();
+							}else{
+								str_v.pop_front();
+							}
 						}
 					}
 				}
@@ -1426,30 +1467,41 @@ void select (lua_State* L)
 		set<string> attrname_tmp_fir(currtable->attrname.begin(),currtable->attrname.end());
 		set<string> attrname_tmp_sec(currtable_sec->attrname.begin(),currtable_sec->attrname.end());
 		// Searching the selecting attribute
-		if(SEL_target.size() == 0){	
-			int target_number = SEL_alias.size();
-			// If the user doesn't define the alias, then I scan both of two tables and get the attr_name and attr_value
-			for (int i=0;i<target_number;i++){
-				auto tmp = SEL_alias[i];
-				if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end() && attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-					cout << "the attribute: "<< tmp <<" “authorId” is ambiguous, as it appears in both table";
-					return;
-				}
-				
-				if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-					target_list.push_back(tmp);
-					int value = currtable-> attrsize[tmp];
+		if(SEL_target.size() == 0){
+			if (SEL_alias[0]=="*"){
+				target_list = currtable->attrname;
+				int target_number = currtable->attrname.size();
+				for (int i=0;i<target_number;i++){
+					int value = currtable-> attrsize[target_list[i]];
 					target_size.push_back(value);
-				}else if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-					target_list.push_back(tmp);
-					int value = currtable_sec-> attrsize[tmp];
-					target_size.push_back(value);
-				}else{
-					cout << "error: ";
-					cout <<" The Selected element" << tmp <<" doesn't exist in the table"<<endl;
-					return;
 				}
 			}
+			else{
+				int target_number = SEL_alias.size();
+				// If the user doesn't define the alias, then I scan both of two tables and get the attr_name and attr_value
+				for (int i=0;i<target_number;i++){
+					auto tmp = SEL_alias[i];
+					if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end() && attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+						cout << "the attribute: "<< tmp <<" “authorId” is ambiguous, as it appears in both table";
+						return;
+					}
+					
+					if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+						target_list.push_back(tmp);
+						int value = currtable-> attrsize[tmp];
+						target_size.push_back(value);
+					}else if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+						target_list.push_back(tmp);
+						int value = currtable_sec-> attrsize[tmp];
+						target_size.push_back(value);
+					}else{
+						cout << "error: ";
+						cout <<" The Selected element" << tmp <<" doesn't exist in the table"<<endl;
+						return;
+					}
+				}
+			}
+			
 		}
 		//Means that users defines the alias
 		else{
@@ -1522,90 +1574,139 @@ void select (lua_State* L)
 						index.push_back((*it).second);
 					}
 					
-					for(int i =0;i<currtable->rownum;i++){
-						for(int j =0;j<target_list.size();j++){
-							string tmp = target_list[j];
-							int value = target_size[j];
-							if (value == -1){
-								if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-									tmp_i = currtable->attrint[tmp];
-									int_v.push_back(tmp_i[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_i = currtable_sec->attrint[tmp];
-									int_v.push_back(tmp_i[tmp_index]);
-								}
-								
-							}else {
-								if(attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-									tmp_v = currtable->attrvar[tmp];
-									str_v.push_back(tmp_v[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_v = currtable_sec->attrvar[tmp];
-									str_v.push_back(tmp_v[tmp_index]);
-								}
+					if (opt[0] == "COUNT"){
+						cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+						cout << index.size()<<endl;
+						return;
+					}
+					else if (opt[0] == "SUM"){
+						if (target_size[0] == -1){
+							int sum = 0;
+							for (index_it=index.begin(); index_it!= index.end(); ++index_it){
+								tmp_i = currtable->attrint[target_list[0]];
+								sum = sum + tmp_i[*index_it];
 							}
-						}
-						new_row(selecttable, int_v, str_v);
-						for (int j=0;j<target_list.size();j++){
-							int value = target_size[j];
-							if (value == -1){
-								int_v.pop_front();
-							}else{
-								str_v.pop_front();
-							}
+							cout << "SUM ("<< target_list[0]<<")"<<endl;
+							cout << sum << endl;
+							return;
+						}else{
+							cout << "ERROR:"<<endl;
+							cout << "We cannot add string type"<<endl;
+							return;
 						}
 					}
-					print_table(selecttable);
-					return;
+					else {
+						for(int i =0;i<currtable->rownum;i++){
+							for(int j =0;j<target_list.size();j++){
+								string tmp = target_list[j];
+								int value = target_size[j];
+								if (value == -1){
+									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+										tmp_i = currtable->attrint[tmp];
+										int_v.push_back(tmp_i[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_i = currtable_sec->attrint[tmp];
+										int_v.push_back(tmp_i[tmp_index]);
+									}
+									
+								}else {
+									if(attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+										tmp_v = currtable->attrvar[tmp];
+										str_v.push_back(tmp_v[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_v = currtable_sec->attrvar[tmp];
+										str_v.push_back(tmp_v[tmp_index]);
+									}
+								}
+							}
+							new_row(selecttable, int_v, str_v);
+							for (int j=0;j<target_list.size();j++){
+								int value = target_size[j];
+								if (value == -1){
+									int_v.pop_front();
+								}else{
+									str_v.pop_front();
+								}
+							}
+						}
+						print_table(selecttable);
+						return;
+					}
+					
+					
 				}else if (compare_inner_join_i_sec.size()!=currtable_sec->attrint[tmp_attr_sec].size()){
 					for(index_it =currtable_sec->attrint[tmp_attr_sec].begin();index_it!= currtable_sec->attrint[tmp_attr_sec].end();++index_it){
 						it = currtable-> attrint_i[tmp_attr_fir].find(*index_it);
 						index.push_back((*it).second);
 					}
-					for(int i =0;i<currtable_sec->rownum;i++){
-						for(int j =0;j<target_list.size();j++){
-							string tmp = target_list[j];
-							int value = target_size[j];
-							if (value == -1){
-								if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-									tmp_i = currtable_sec->attrint[tmp];
-									int_v.push_back(tmp_i[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_i = currtable->attrint[tmp];
-									int_v.push_back(tmp_i[tmp_index]);
-								}
-								
-							}else {
-								if(attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-									tmp_v = currtable_sec->attrvar[tmp];
-									str_v.push_back(tmp_v[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_v = currtable->attrvar[tmp];
-									str_v.push_back(tmp_v[tmp_index]);
-								}
+					if (opt[0] == "COUNT"){
+						cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+						cout << index.size()<<endl;
+						return;
+					}
+					else if (opt[0] == "SUM"){
+						if (target_size[0] == -1){
+							int sum = 0;
+							for (index_it=index.begin(); index_it!= index.end(); ++index_it){
+								tmp_i = currtable->attrint[target_list[0]];
+								sum = sum + tmp_i[*index_it];
 							}
-						}
-						new_row(selecttable, int_v, str_v);
-						for (int j=0;j<target_list.size();j++){
-							int value = target_size[j];
-							if (value == -1){
-								int_v.pop_front();
-							}else{
-								str_v.pop_front();
-							}
+							cout << "SUM ("<< target_list[0]<<")"<<endl;
+							cout << sum << endl;
+							return;
+						}else{
+							cout << "ERROR:"<<endl;
+							cout << "We cannot add string type"<<endl;
+							return;
 						}
 					}
-					print_table(selecttable);
-					return;
+					else{
+						for(int i =0;i<currtable_sec->rownum;i++){
+							for(int j =0;j<target_list.size();j++){
+								string tmp = target_list[j];
+								int value = target_size[j];
+								if (value == -1){
+									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+										tmp_i = currtable_sec->attrint[tmp];
+										int_v.push_back(tmp_i[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_i = currtable->attrint[tmp];
+										int_v.push_back(tmp_i[tmp_index]);
+									}
+									
+								}else {
+									if(attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+										tmp_v = currtable_sec->attrvar[tmp];
+										str_v.push_back(tmp_v[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_v = currtable->attrvar[tmp];
+										str_v.push_back(tmp_v[tmp_index]);
+									}
+								}
+							}
+							new_row(selecttable, int_v, str_v);
+							for (int j=0;j<target_list.size();j++){
+								int value = target_size[j];
+								if (value == -1){
+									int_v.pop_front();
+								}else{
+									str_v.pop_front();
+								}
+							}
+						}
+						print_table(selecttable);
+						return;
+					}
 				}
 			}
 			else if (value_fir == 30 && value_sec == 30){
 				multimap<string,int>::iterator it_var;
 				vector<int> index;
+				vector<int> ::iterator in;
 				vector<string>::iterator index_it;
 				// In order to know which table mapping to another table, we compare each inner_join attribute.
 				set<string> compare_inner_join_v_fir(currtable->attrvar[tmp_attr_fir].begin(),currtable->attrvar[tmp_attr_fir].end());
@@ -1616,89 +1717,136 @@ void select (lua_State* L)
 						it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(*index_it);
 						index.push_back((*it_var).second);
 					}
-					for(int i =0;i<currtable->rownum;i++){
-						for(int j =0;j<target_list.size();j++){
-							string tmp = target_list[j];
-							int value = target_size[j];
-							if (value == -1){
-								if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-									tmp_i = currtable->attrint[tmp];
-									int_v.push_back(tmp_i[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_i = currtable_sec->attrint[tmp];
-									int_v.push_back(tmp_i[tmp_index]);
-								}
-								
-							}else {
-								if(attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-									tmp_v = currtable->attrvar[tmp];
-									str_v.push_back(tmp_v[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_v = currtable_sec->attrvar[tmp];
-									str_v.push_back(tmp_v[tmp_index]);
-								}
+					if (opt[0] == "COUNT"){
+						cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+						cout << index.size()<<endl;
+						return;
+					}
+					else if (opt[0] == "SUM"){
+						if (target_size[0] == -1){
+							int sum = 0;
+							for (in=index.begin(); in!= index.end(); ++in){
+								tmp_i = currtable->attrint[target_list[0]];
+								sum = sum + tmp_i[*in];
 							}
-						}
-						new_row(selecttable, int_v, str_v);
-						for (int j=0;j<target_list.size();j++){
-							int value = target_size[j];
-							if (value == -1){
-								int_v.pop_front();
-							}else{
-								str_v.pop_front();
-							}
+							cout << "SUM ("<< target_list[0]<<")"<<endl;
+							cout << sum << endl;
+							return;
+						}else{
+							cout << "ERROR:"<<endl;
+							cout << "We cannot add string type"<<endl;
+							return;
 						}
 					}
-					print_table(selecttable);
-					return;
-				}else if (compare_inner_join_v_sec.size()!=currtable_sec->attrvar[tmp_attr_sec].size()){
+					else{
+						for(int i =0;i<currtable->rownum;i++){
+							for(int j =0;j<target_list.size();j++){
+								string tmp = target_list[j];
+								int value = target_size[j];
+								if (value == -1){
+									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+										tmp_i = currtable->attrint[tmp];
+										int_v.push_back(tmp_i[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_i = currtable_sec->attrint[tmp];
+										int_v.push_back(tmp_i[tmp_index]);
+									}
+									
+								}else {
+									if(attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+										tmp_v = currtable->attrvar[tmp];
+										str_v.push_back(tmp_v[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_v = currtable_sec->attrvar[tmp];
+										str_v.push_back(tmp_v[tmp_index]);
+									}
+								}
+							}
+							new_row(selecttable, int_v, str_v);
+							for (int j=0;j<target_list.size();j++){
+								int value = target_size[j];
+								if (value == -1){
+									int_v.pop_front();
+								}else{
+									str_v.pop_front();
+								}
+							}
+						}
+						print_table(selecttable);
+						return;
+					}
+					
+					
+				}
+				else if (compare_inner_join_v_sec.size()!=currtable_sec->attrvar[tmp_attr_sec].size()){
 					for(index_it =currtable_sec->attrvar[tmp_attr_sec].begin();index_it!= currtable_sec->attrvar[tmp_attr_sec].end();++index_it){
 						it_var = currtable-> attrvar_i[tmp_attr_fir].find(*index_it);
 						index.push_back((*it_var).second);
 					}
 					
-					for(int i =0;i<currtable_sec->rownum;i++){
-						for(int j =0;j<target_list.size();j++){
-							string tmp = target_list[j];
-							int value = target_size[j];
-							if (value == -1){
-								if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-									tmp_i = currtable_sec->attrint[tmp];
-									int_v.push_back(tmp_i[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_i = currtable->attrint[tmp];
-									int_v.push_back(tmp_i[tmp_index]);
-								}
-								
-							}else {
-								if(attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-									tmp_v = currtable_sec->attrvar[tmp];
-									str_v.push_back(tmp_v[i]);
-								}else{
-									int tmp_index = index[i];
-									tmp_v = currtable->attrvar[tmp];
-									str_v.push_back(tmp_v[tmp_index]);
-								}
+					if (opt[0] == "COUNT"){
+						cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+						cout << index.size()<<endl;
+						return;
+					}
+					else if (opt[0] == "SUM"){
+						if (target_size[0] == -1){
+							int sum = 0;
+							for (in=index.begin(); in!= index.end(); ++in){
+								tmp_i = currtable->attrint[target_list[0]];
+								sum = sum + tmp_i[*in];
 							}
-						}
-						new_row(selecttable, int_v, str_v);
-						for (int j=0;j<target_list.size();j++){
-							int value = target_size[j];
-							if (value == -1){
-								int_v.pop_front();
-							}else{
-								str_v.pop_front();
-							}
+							cout << "SUM ("<< target_list[0]<<")"<<endl;
+							cout << sum << endl;
+							return;
+						}else{
+							cout << "ERROR:"<<endl;
+							cout << "We cannot add string type"<<endl;
+							return;
 						}
 					}
-					print_table(selecttable);
-					return;
-					
+					else{
+						for(int i =0;i<currtable_sec->rownum;i++){
+							for(int j =0;j<target_list.size();j++){
+								string tmp = target_list[j];
+								int value = target_size[j];
+								if (value == -1){
+									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+										tmp_i = currtable_sec->attrint[tmp];
+										int_v.push_back(tmp_i[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_i = currtable->attrint[tmp];
+										int_v.push_back(tmp_i[tmp_index]);
+									}
+									
+								}else {
+									if(attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+										tmp_v = currtable_sec->attrvar[tmp];
+										str_v.push_back(tmp_v[i]);
+									}else{
+										int tmp_index = index[i];
+										tmp_v = currtable->attrvar[tmp];
+										str_v.push_back(tmp_v[tmp_index]);
+									}
+								}
+							}
+							new_row(selecttable, int_v, str_v);
+							for (int j=0;j<target_list.size();j++){
+								int value = target_size[j];
+								if (value == -1){
+									int_v.pop_front();
+								}else{
+									str_v.pop_front();
+								}
+							}
+						}
+						print_table(selecttable);
+						return;
+					}
 				}
-				
 			}
 			else{
 				cout << "error: different types and cannot be compared."<<endl;
@@ -1852,50 +2000,72 @@ void select (lua_State* L)
 					if (which_table_tmp.compare(which_table_wf) == 0){
 						inner_join_tmp_i = currtable->attrint[tmp_attr_fir];
 						
-						// Print table
-						for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
-							for (int i=0;i<target_list.size();i++){
-								string tmp = target_list[i];
-								int value = target_size[i];
-								if (value == -1){
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = *index_it;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										tmp_index = inner_join_tmp_i[*index_it];
-										it = currtable_sec-> attrint_i[tmp_attr_sec].find(tmp_index);
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = (*it).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else{
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = *index_it;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										tmp_index = inner_join_tmp_i[*index_it];
-										it = currtable_sec-> attrint_i[tmp_attr_sec].find(tmp_index);
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = (*it).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_i.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_it];
 								}
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
-						
+						else{
+							// Print table
+							for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
+								for (int i=0;i<target_list.size();i++){
+									string tmp = target_list[i];
+									int value = target_size[i];
+									if (value == -1){
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = *index_it;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											tmp_index = inner_join_tmp_i[*index_it];
+											it = currtable_sec-> attrint_i[tmp_attr_sec].find(tmp_index);
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = (*it).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else{
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = *index_it;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											tmp_index = inner_join_tmp_i[*index_it];
+											it = currtable_sec-> attrint_i[tmp_attr_sec].find(tmp_index);
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = (*it).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
 					}
 					else if (which_table_tmp.compare(which_table_ws) == 0){
 						inner_join_tmp_i = currtable_sec->attrint[tmp_attr_sec];
@@ -1912,110 +2082,155 @@ void select (lua_State* L)
 									index_combine.push_back((*it).second);
 							}
 						}
-						
-						// Print Table
-						for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
-							for (int i=0;i<target_list.size();i++){								
-								auto tmp = target_list[i];
-								int value = target_size[i];
-								if (value== -1){
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = *index_inner;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										tmp_i = currtable->attrint[tmp_attr_fir];
-										tmp_index = *index_inner;
-										val = tmp_i[tmp_index];
-										it = currtable_sec-> attrint_i[tmp_attr_sec].find(val);
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = (*it).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else {
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = *index_inner;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										tmp_i = currtable->attrint[tmp_attr_fir];
-										tmp_index = *index_inner;
-										val = tmp_i[tmp_index];
-										it = currtable_sec-> attrint_i[tmp_attr_sec].find(val);
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = (*it).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_combine.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_inner=index_combine.begin(); index_inner!= index_combine.end(); ++index_inner){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_inner];
 								}
-								
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
+								for (int i=0;i<target_list.size();i++){								
+									auto tmp = target_list[i];
+									int value = target_size[i];
+									if (value== -1){
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = *index_inner;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											tmp_i = currtable->attrint[tmp_attr_fir];
+											tmp_index = *index_inner;
+											val = tmp_i[tmp_index];
+											it = currtable_sec-> attrint_i[tmp_attr_sec].find(val);
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = (*it).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else {
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = *index_inner;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											tmp_i = currtable->attrint[tmp_attr_fir];
+											tmp_index = *index_inner;
+											val = tmp_i[tmp_index];
+											it = currtable_sec-> attrint_i[tmp_attr_sec].find(val);
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = (*it).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+									
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
 					}
 				}
 				// It represents table_second mapping to table_fir
 				else if (compare_inner_join_i_sec.size()!=currtable_sec->attrint[tmp_attr_sec].size()){
 					if (which_table_tmp.compare(which_table_ws) == 0){
-						inner_join_tmp_i = currtable_sec->attrint[tmp_attr_fir];
+						inner_join_tmp_i = currtable_sec->attrint[tmp_attr_sec];
 						
-						// Print table
-						for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
-							for (int i=0;i<target_list.size();i++){
-								string tmp = target_list[i];
-								int value = target_size[i];
-								if (value == -1){
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = *index_it;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										tmp_index = inner_join_tmp_i[*index_it];
-										it = currtable-> attrint_i[tmp_attr_fir].find(tmp_index);
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = (*it).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else{
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = *index_it;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										tmp_index = inner_join_tmp_i[*index_it];
-										it = currtable-> attrint_i[tmp_attr_fir].find(tmp_index);
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = (*it).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_i.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_it];
 								}
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							// Print table
+							for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
+								for (int i=0;i<target_list.size();i++){
+									string tmp = target_list[i];
+									int value = target_size[i];
+									if (value == -1){
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = *index_it;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											tmp_index = inner_join_tmp_i[*index_it];
+											it = currtable-> attrint_i[tmp_attr_fir].find(tmp_index);
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = (*it).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else{
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = *index_it;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											tmp_index = inner_join_tmp_i[*index_it];
+											it = currtable-> attrint_i[tmp_attr_fir].find(tmp_index);
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = (*it).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
+						
 						
 					}
 					else if (which_table_tmp.compare(which_table_wf) == 0){
 						inner_join_tmp_i = currtable->attrint[tmp_attr_fir];
-						// print table
+						// 
 						for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
 							int tmp_i = *index_it;
 							compare_int_inner_join.push_back(inner_join_tmp_i[tmp_i]);
@@ -2028,55 +2243,77 @@ void select (lua_State* L)
 									index_combine.push_back((*it).second);
 							}
 						}
-						
-						// Print Table
-						for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
-							for (int i=0;i<target_list.size();i++){								
-								auto tmp = target_list[i];
-								int value = target_size[i];
-								if (value== -1){
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = *index_inner;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										tmp_i = currtable_sec->attrint[tmp_attr_sec];
-										tmp_index = *index_inner;
-										val = tmp_i[tmp_index];
-										it = currtable-> attrint_i[tmp_attr_fir].find(val);
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = (*it).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else {
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = *index_inner;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										tmp_i = currtable_sec->attrint[tmp_attr_sec];
-										tmp_index = *index_inner;
-										val = tmp_i[tmp_index];
-										it = currtable-> attrint_i[tmp_attr_fir].find(val);
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = (*it).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_combine.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_inner=index_combine.begin(); index_inner!= index_combine.end(); ++index_inner){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_inner];
 								}
-								
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							// Print Table
+							for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
+								for (int i=0;i<target_list.size();i++){								
+									auto tmp = target_list[i];
+									int value = target_size[i];
+									if (value== -1){
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = *index_inner;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											tmp_i = currtable_sec->attrint[tmp_attr_sec];
+											tmp_index = *index_inner;
+											val = tmp_i[tmp_index];
+											it = currtable-> attrint_i[tmp_attr_fir].find(val);
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = (*it).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else {
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = *index_inner;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											tmp_i = currtable_sec->attrint[tmp_attr_sec];
+											tmp_index = *index_inner;
+											val = tmp_i[tmp_index];
+											it = currtable-> attrint_i[tmp_attr_fir].find(val);
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = (*it).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+									
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
 					}
 				}
 			}
@@ -2093,49 +2330,73 @@ void select (lua_State* L)
 					if (which_table_tmp.compare(which_table_wf) == 0){
 						inner_join_tmp_v = currtable->attrvar[tmp_attr_fir];
 						
-						// Print table
-						for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
-							for (int i=0;i<target_list.size();i++){
-								string tmp = target_list[i];
-								int value = target_size[i];
-								if (value == -1){
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = *index_it;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										val = inner_join_tmp_v[*index_it];
-										it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = (*it_var).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else{
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = *index_it;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										val = inner_join_tmp_i[*index_it];
-										it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = (*it_var).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_i.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_it];
 								}
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							// Print table
+							for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
+								for (int i=0;i<target_list.size();i++){
+									string tmp = target_list[i];
+									int value = target_size[i];
+									if (value == -1){
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = *index_it;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											val = inner_join_tmp_v[*index_it];
+											it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = (*it_var).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else{
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = *index_it;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											val = inner_join_tmp_i[*index_it];
+											it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = (*it_var).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
+						
 					}
 					else if (which_table_tmp.compare(which_table_ws) == 0){
 						inner_join_tmp_v = currtable_sec->attrvar[tmp_attr_sec];
@@ -2153,103 +2414,149 @@ void select (lua_State* L)
 							}
 						}
 						
-						// Print Table
-						for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
-							for (int i=0;i<target_list.size();i++){								
-								string tmp = target_list[i];
-								int value = target_size[i];
-								if (value== -1){
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = *index_inner;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										tmp_v = currtable->attrvar[tmp_attr_fir];
-										tmp_index = *index_inner;
-										val = tmp_v[tmp_index];
-										it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = (*it_var).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else {
-									if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = *index_inner;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										tmp_v = currtable->attrvar[tmp_attr_fir];
-										tmp_index = *index_inner;
-										val = tmp_v[tmp_index];
-										it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = (*it_var).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_combine.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_inner=index_combine.begin(); index_inner!= index_combine.end(); ++index_inner){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_inner];
 								}
-								
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							// Print Table
+							for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
+								for (int i=0;i<target_list.size();i++){								
+									string tmp = target_list[i];
+									int value = target_size[i];
+									if (value== -1){
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = *index_inner;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											tmp_v = currtable->attrvar[tmp_attr_fir];
+											tmp_index = *index_inner;
+											val = tmp_v[tmp_index];
+											it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = (*it_var).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else {
+										if (attrname_tmp_fir.find(tmp)!=attrname_tmp_fir.end()){
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = *index_inner;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											tmp_v = currtable->attrvar[tmp_attr_fir];
+											tmp_index = *index_inner;
+											val = tmp_v[tmp_index];
+											it_var = currtable_sec-> attrvar_i[tmp_attr_sec].find(val);
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = (*it_var).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+									
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
 					}
 				}
 				else if (compare_inner_join_v_sec.size()!=currtable_sec->attrvar[tmp_attr_sec].size()){
 					if (which_table_tmp.compare(which_table_ws) == 0){
 						inner_join_tmp_v = currtable_sec->attrvar[tmp_attr_fir];
-					
-						// Print table
-						for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
-							for (int i=0;i<target_list.size();i++){
-								string tmp = target_list[i];
-								int value = target_size[i];
-								if (value == -1){
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = *index_it;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										val = inner_join_tmp_v[*index_it];
-										it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = (*it_var).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else{
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = *index_it;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										val = inner_join_tmp_i[*index_it];
-										it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = (*it_var).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_i.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_it=index_i.begin(); index_it!= index_i.end(); ++index_it){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_it];
 								}
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							// Print table
+							for (index_it = index_i.begin();index_it != index_i.end(); ++index_it){
+								for (int i=0;i<target_list.size();i++){
+									string tmp = target_list[i];
+									int value = target_size[i];
+									if (value == -1){
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = *index_it;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											val = inner_join_tmp_v[*index_it];
+											it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = (*it_var).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else{
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = *index_it;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											val = inner_join_tmp_i[*index_it];
+											it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = (*it_var).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
 					}
 					else if (which_table_tmp.compare(which_table_wf) == 0){
 						inner_join_tmp_v = currtable->attrvar[tmp_attr_fir];
@@ -2266,58 +2573,80 @@ void select (lua_State* L)
 									index_combine.push_back((*it_var).second);
 							}
 						}
-					
-						// Print Table
-						for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
-							for (int i=0;i<target_list.size();i++){								
-								string tmp = target_list[i];
-								int value = target_size[i];
-								if (value== -1){
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_i = currtable_sec->attrint[tmp];
-										tmp_index = *index_inner;
-										int_v.push_back(tmp_i[tmp_index]);
-									}else{
-										tmp_v = currtable_sec->attrvar[tmp_attr_sec];
-										tmp_index = *index_inner;
-										val = tmp_v[tmp_index];
-										it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
-										tmp_i = currtable->attrint[tmp];
-										tmp_index = (*it_var).second;
-										int_v.push_back(tmp_i[tmp_index]);
-									}
-								}else {
-									if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
-										tmp_v = currtable_sec->attrvar[tmp];
-										tmp_index = *index_inner;
-										str_v.push_back(tmp_v[tmp_index]);
-									}else{
-										tmp_v = currtable_sec->attrvar[tmp_attr_sec];
-										tmp_index = *index_inner;
-										val = tmp_v[tmp_index];
-										it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
-										tmp_v = currtable->attrvar[tmp];
-										tmp_index = (*it_var).second;
-										str_v.push_back(tmp_v[tmp_index]);
-									}
+						
+						if (opt[0] == "COUNT"){
+							cout << "COUNT ("<< SEL_alias[0]<<")"<<endl;
+							cout << index_combine.size()<<endl;
+							return;
+						}
+						else if (opt[0] == "SUM"){
+							if (target_size[0] == -1){
+								int sum = 0;
+								for (index_inner=index_combine.begin(); index_inner!= index_combine.end(); ++index_inner){
+									tmp_i = currtable->attrint[target_list[0]];
+									sum = sum + tmp_i[*index_inner];
 								}
-								
-							}
-							new_row(selecttable, int_v, str_v);
-							for (int i=0;i<target_list.size();i++){
-								int value = target_size[i];
-								if (value == -1){
-									int_v.pop_front();
-								}else{
-									str_v.pop_front();
-								}
+								cout << "SUM ("<< target_list[0]<<")"<<endl;
+								cout << sum << endl;
+								return;
+							}else{
+								cout << "ERROR:"<<endl;
+								cout << "We cannot add string type"<<endl;
+								return;
 							}
 						}
-						print_table(selecttable);
-						return;
+						else{
+							// Print Table
+							for(index_inner =index_combine.begin();index_inner!= index_combine.end();++index_inner){
+								for (int i=0;i<target_list.size();i++){								
+									string tmp = target_list[i];
+									int value = target_size[i];
+									if (value== -1){
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_i = currtable_sec->attrint[tmp];
+											tmp_index = *index_inner;
+											int_v.push_back(tmp_i[tmp_index]);
+										}else{
+											tmp_v = currtable_sec->attrvar[tmp_attr_sec];
+											tmp_index = *index_inner;
+											val = tmp_v[tmp_index];
+											it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
+											tmp_i = currtable->attrint[tmp];
+											tmp_index = (*it_var).second;
+											int_v.push_back(tmp_i[tmp_index]);
+										}
+									}else {
+										if (attrname_tmp_sec.find(tmp)!=attrname_tmp_sec.end()){
+											tmp_v = currtable_sec->attrvar[tmp];
+											tmp_index = *index_inner;
+											str_v.push_back(tmp_v[tmp_index]);
+										}else{
+											tmp_v = currtable_sec->attrvar[tmp_attr_sec];
+											tmp_index = *index_inner;
+											val = tmp_v[tmp_index];
+											it_var = currtable-> attrvar_i[tmp_attr_fir].find(val);
+											tmp_v = currtable->attrvar[tmp];
+											tmp_index = (*it_var).second;
+											str_v.push_back(tmp_v[tmp_index]);
+										}
+									}
+									
+								}
+								new_row(selecttable, int_v, str_v);
+								for (int i=0;i<target_list.size();i++){
+									int value = target_size[i];
+									if (value == -1){
+										int_v.pop_front();
+									}else{
+										str_v.pop_front();
+									}
+								}
+							}
+							print_table(selecttable);
+							return;
+						}
 					}
 				}
-				
 			}
 			else{
 				cout << "error: different types and cannot be compared."<<endl;
